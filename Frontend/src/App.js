@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useState } from "react";
+
 import FrontPage from "./pages/FrontPage";
+import ProtectedRoute from "./ProtectedRoute";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -24,21 +27,22 @@ import TeacherLogin from "./pages/teacher/TeacherLogin";
 import TeacherRegister from "./pages/teacher/TeacherRegister";
 
 function App() {
-  const isAdminLoggedIn = !!localStorage.getItem("token");
+  const [isAdminLoggedIn] = useState(
+    !!localStorage.getItem("token")
+  );
 
   return (
     <BrowserRouter>
       <Routes>
-        {/* 🌍 Landing Page */}
+        {/* 🌍 Landing */}
         <Route path="/" element={<FrontPage />} />
 
-        {/* 🔐 Admin Login */}
+        {/* 🔐 Admin login */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* 🧩 Admin Panel (with Sidebar) */}
-        {isAdminLoggedIn ? (
-          <Route path="/admin" element={<AdminSidebarLayout />}>
-            {/* Default Route → Add Student */}
+        {/* 🔒 Protected Admin */}
+        <Route path="/admin" element={<ProtectedRoute />}>
+          <Route element={<AdminSidebarLayout />}>
             <Route index element={<Navigate to="/admin/students/add" replace />} />
 
             {/* 🎓 Students */}
@@ -48,29 +52,21 @@ function App() {
             <Route path="students/edit/:id/form" element={<EditStudentForm />} />
             <Route path="students/remove" element={<RemoveStudent />} />
 
-<Route path="teachers/add" element={<AddTeacher />} />
-<Route path="teachers/view" element={<ViewTeachers />} />
-<Route path="teachers/edit" element={<EditTeacher />} />
-<Route path="teachers/edit/:id/form" element={<EditTeacherForm />} />
-<Route path="teachers/remove" element={<RemoveTeacher />} />
+            {/* 👨‍🏫 Teachers */}
+            <Route path="teachers/add" element={<AddTeacher />} />
+            <Route path="teachers/view" element={<ViewTeachers />} />
+            <Route path="teachers/edit" element={<EditTeacher />} />
+            <Route path="teachers/edit/:id/form" element={<EditTeacherForm />} />
+            <Route path="teachers/remove" element={<RemoveTeacher />} />
           </Route>
-        ) : (
-          <Route path="*" element={<Navigate to="/admin/login" replace />} />
-        )}
-
-        {/* 🎓 Student */}
-        <Route path="/student/login" element={<StudentLogin />} />
-        <Route path="/student/register" element={<StudentRegister />} />
-
-        {/* 👨‍🏫 Teacher */}
-        <Route path="/teacher/login" element={<TeacherLogin />} />
-        <Route path="/teacher/register" element={<TeacherRegister />} />
+        </Route>
 
         {/* 🚫 Fallback */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
+
