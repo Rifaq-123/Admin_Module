@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         maven 'Maven'
-        jdk 'Java21'
+        jdk 'java21'
     }
 
     environment {
@@ -15,10 +15,14 @@ pipeline {
 
     stages {
 
-        stage('Checkout dev branch') {
-            steps {
-                git branch: "${DEV_BRANCH}", url: "${REPO_URL}"
-            }
+stage('Checkout dev branch') {
+    steps {
+        checkout([$class: 'GitSCM',
+            branches: [[name: '*/dev']],
+            userRemoteConfigs: [[url: "${REPO_URL}"]]
+        ])
+    }
+}
         }
 
         stage('Build Maven Project') {
