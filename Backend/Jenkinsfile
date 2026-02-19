@@ -1,0 +1,98 @@
+pipeline {
+    agent any
+
+    tools {
+        maven 'Maven'
+        jdk 'Java21'
+    }
+
+    environment {
+        DEV_BRANCH = "dev"
+        MAIN_BRANCH = "main"
+        REPO_URL = "https://github.com/Rifaq-123/Admin_Module.git"
+        IMAGE_NAME = "student-management-backend"
+    }
+
+    stages {
+
+        stage('Checkout dev branch') {
+            steps {
+                git branch: "${DEV_BRANCH}", url: "${REPO_URL}"
+            }
+        }
+
+        stage('Build Maven Project') {
+            steps {
+                dir('Backend') {
+                    sh 'mvn clean package'
+                }
+            }
+        }
+
+        stage('SonarCloud Analysis') {
+            steps {
+                dir('Backend') {
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                        sh '''
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=rifaq-123_Admin_Module \
+                        -Dsonar.organization=rifaq-123 \
+                        -Dsonar.host.url=https://sonarcloud.io \
+                        -Dsonar.login=$SONAR_TOKEN
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('Backend') {
+                    sh 'docker build -t student-management-backend .'
+                }
+            }
+        }
+
+        stage('Verify Docker Image') {
+            steps {
+                sh 'docker images'
+            }
+        }
+
+        stage('Promote dev to main branch') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-credentials',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PASS'
+                )]) {
+                    sh '''
+                    git config user.name "$GIT_USER"
+                    git config user.email "jenkins@example.com"
+
+                    git fetch origin
+
+                    git checkout main || git checkout -b main
+
+                    git merge origin/dev --no-edit
+
+                    git push https://$GIT_USER:$GIT_PASS@github.com/Rifaq-123/Admin_Module.git main
+                    '''
+                }
+            }
+        }
+
+    }
+
+    post {
+
+        success {
+            echo 'SUCCESS: Build completed, SonarCloud checked, Docker built, main branch updated.'
+        }
+
+        failure {
+            echo 'FAILED: Build stopped. Fix errors and retry.'
+        }
+
+    }
+}
