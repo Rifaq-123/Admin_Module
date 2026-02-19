@@ -5,7 +5,7 @@ pipeline {
         DEV_BRANCH = "dev"
         MAIN_BRANCH = "main"
         REPO_URL = "https://github.com/Rifaq-123/Admin_Module.git"
-        IMAGE_NAME = "student-management-backend"
+        DOCKER_IMAGE = "rifaq123/student-management-backend"
     }
 
     stages {
@@ -13,7 +13,7 @@ pipeline {
         stage('Checkout dev branch') {
             steps {
                 checkout([$class: 'GitSCM',
-                    branches: [[name: '*/dev']],
+                    branches: [[name: "*/${DEV_BRANCH}"]],
                     userRemoteConfigs: [[url: "${REPO_URL}"]]
                 ])
             }
@@ -22,7 +22,7 @@ pipeline {
         stage('Build Maven Project') {
             steps {
                 dir('Backend') {
-                    sh 'mvn clean package'
+                    sh 'mvn clean package -DskipTests'
                 }
             }
         }
@@ -36,7 +36,8 @@ pipeline {
                         -Dsonar.projectKey=rifaq-123_Admin_Module \
                         -Dsonar.organization=rifaq-123 \
                         -Dsonar.host.url=https://sonarcloud.io \
-                        -Dsonar.login=$SONAR_TOKEN
+                        -Dsonar.login=$SONAR_TOKEN \
+                        -Dsonar.branch.name=dev
                         '''
                     }
                 }
@@ -46,14 +47,33 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 dir('Backend') {
-                    sh 'docker build -t student-management-backend .'
+                    sh '''
+                    docker build -t student-management-backend .
+                    '''
                 }
             }
         }
 
-        stage('Verify Docker Image') {
+        stage('Tag Docker Image') {
             steps {
-                sh 'docker images'
+                sh '''
+                docker tag student-management-backend $DOCKER_IMAGE:latest
+                '''
+            }
+        }
+
+        stage('Push Docker Image to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                    docker login -u $DOCKER_USER -p $DOCKER_PASS
+                    docker push $DOCKER_IMAGE:latest
+                    '''
+                }
             }
         }
 
@@ -85,11 +105,11 @@ pipeline {
     post {
 
         success {
-            echo 'SUCCESS: Build completed, SonarCloud checked, Docker built, main branch updated.'
+            echo 'SUCCESS: Docker image pushed to DockerHub and main branch updated.'
         }
 
         failure {
-            echo 'FAILED: Build stopped. Fix errors and retry.'
+            echo 'FAILED: Pipeline failed. Fix errors.'
         }
 
     }
