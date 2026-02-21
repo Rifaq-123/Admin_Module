@@ -9,7 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/teachers")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://admin-module-wuq1.vercel.app/")
 public class AdminTeacherController {
 
     @Autowired

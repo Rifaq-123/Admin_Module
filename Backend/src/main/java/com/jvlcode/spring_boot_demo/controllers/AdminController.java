@@ -11,7 +11,7 @@ import org.springframework.security.authentication.*;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = "https://admin-module-wuq1.vercel.app/", allowCredentials = "true")
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
