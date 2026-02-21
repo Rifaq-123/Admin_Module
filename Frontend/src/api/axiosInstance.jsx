@@ -1,9 +1,9 @@
 import axios from "axios";
 
-const BASE_URL = process.env.REACT_APP_API_BASE || "http://localhost:8080/api";
+const BASE_URL = process.env.REACT_APP_API_BASE || "https://student-management-backend-uwvi.onrender.com/api";
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: import.meta.env.VITE_API_URL || "https://student-management-backend-uwvi.onrender.com/api",
   headers: { "Content-Type": "application/json" },
 });
 

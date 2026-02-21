@@ -9,7 +9,7 @@ import api, { setAuthToken, logout } from "./axiosInstance";
 export const adminLogin = async (credentials) => {
   try {
     const response = await axios.post(
-      "http://localhost:8080/api/admin/login",
+      "https://student-management-backend-uwvi.onrender.com/api/admin/login",
       credentials,
       { headers: { "Content-Type": "application/json" } }
     );
