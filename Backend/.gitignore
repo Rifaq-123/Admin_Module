@@ -34,8 +34,4 @@ build/
 
 # Environment variables
 Backend/.env
-<<<<<<< HEAD
 .env
-=======
-.env
->>>>>>> dev
