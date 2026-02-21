@@ -2,14 +2,13 @@ pipeline {
     agent any
 
     environment {
-        DEV_BRANCH = "dev"
-        MAIN_BRANCH = "main"
-        REPO_URL = "https://github.com/Rifaq-123/Admin_Module.git"
-        DOCKER_IMAGE = "rifaq123/student-management-backend"
+        DEV_BRANCH = 'dev'
+        MAIN_BRANCH = 'main'
+        REPO_URL = 'https://github.com/Rifaq-123/Admin_Module.git'
+        DOCKER_IMAGE = 'rifaq123/student-management-backend'
     }
 
     stages {
-
         stage('Checkout dev branch') {
             steps {
                 checkout([$class: 'GitSCM',
@@ -48,14 +47,14 @@ pipeline {
                                 -Dsonar.branch.name=dev
                                 """
                             } else {
-                                bat """
+                                bat '''
                                 mvn sonar:sonar ^
                                 -Dsonar.projectKey=rifaq-123_Admin_Module ^
                                 -Dsonar.organization=rifaq-123 ^
                                 -Dsonar.host.url=https://sonarcloud.io ^
                                 -Dsonar.login=%SONAR_TOKEN% ^
                                 -Dsonar.branch.name=dev
-                                """
+                                '''
                             }
                         }
                     }
@@ -104,7 +103,7 @@ pipeline {
                             '''
                         } else {
                             bat '''
-                            echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin
+                            docker login -u %DOCKER_USER% -p %DOCKER_PASS%
                             docker push %DOCKER_IMAGE%:latest
                             '''
                         }
@@ -144,7 +143,6 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
