@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DEV_BRANCH = 'dev'
-        MAIN_BRANCH = 'main'
-        REPO_URL = 'https://github.com/Rifaq-123/Admin_Module.git'
+        DEV_BRANCH   = 'dev'
+        MAIN_BRANCH  = 'main'
+        REPO_URL     = 'https://github.com/Rifaq-123/Admin_Module.git'
         DOCKER_IMAGE = 'rifaq123/student-management-backend'
     }
 
@@ -22,7 +22,13 @@ pipeline {
         stage('Build Maven Project') {
             steps {
                 dir('Backend') {
-                    bat 'mvn clean package -DskipTests'
+                    script {
+                        if (isUnix()) {
+                            sh 'mvn clean package -DskipTests'
+                        } else {
+                            bat 'mvn clean package -DskipTests'
+                        }
+                    }
                 }
             }
         }
@@ -31,14 +37,27 @@ pipeline {
             steps {
                 dir('Backend') {
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
-                        bat '''
-                        mvn sonar:sonar ^
-                        -Dsonar.projectKey=rifaq-123_Admin_Module ^
-                        -Dsonar.organization=rifaq-123 ^
-                        -Dsonar.host.url=https://sonarcloud.io ^
-                        -Dsonar.token=%SONAR_TOKEN% ^
-                        -Dsonar.branch.name=dev
-                        '''
+                        script {
+                            if (isUnix()) {
+                                sh """
+                                mvn sonar:sonar \
+                                -Dsonar.projectKey=rifaq-123_Admin_Module \
+                                -Dsonar.organization=rifaq-123 \
+                                -Dsonar.host.url=https://sonarcloud.io \
+                                -Dsonar.token=\$SONAR_TOKEN \
+                                -Dsonar.branch.name=dev
+                                """
+                            } else {
+                                bat """
+                                mvn sonar:sonar ^
+                                -Dsonar.projectKey=rifaq-123_Admin_Module ^
+                                -Dsonar.organization=rifaq-123 ^
+                                -Dsonar.host.url=https://sonarcloud.io ^
+                                -Dsonar.token=%SONAR_TOKEN% ^
+                                -Dsonar.branch.name=dev
+                                """
+                            }
+                        }
                     }
                 }
             }
@@ -47,14 +66,26 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 dir('Backend') {
-                    bat 'docker build -t student-management-backend .'
+                    script {
+                        if (isUnix()) {
+                            sh 'docker build -t student-management-backend .'
+                        } else {
+                            bat 'docker build -t student-management-backend .'
+                        }
+                    }
                 }
             }
         }
 
         stage('Tag Docker Image') {
             steps {
-                bat 'docker tag student-management-backend %DOCKER_IMAGE%:latest'
+                script {
+                    if (isUnix()) {
+                        sh 'docker tag student-management-backend $DOCKER_IMAGE:latest'
+                    } else {
+                        bat 'docker tag student-management-backend %DOCKER_IMAGE%:latest'
+                    }
+                }
             }
         }
 
@@ -65,11 +96,31 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    powershell '''
-                    $env:DOCKER_PASS | docker login -u $env:DOCKER_USER --password-stdin
-                    docker push "$env:DOCKER_IMAGE:latest"
-                    docker logout
-                    '''
+                    script {
+
+                        if (isUnix()) {
+
+                            sh '''
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            docker push $DOCKER_IMAGE:latest
+                            docker logout
+                            '''
+
+                        } else {
+
+                            powershell '''
+                            docker logout 2>$null
+
+                            docker login `
+                              --username "$env:DOCKER_USER" `
+                              --password "$env:DOCKER_PASS"
+
+                            docker push "$env:DOCKER_IMAGE`:latest"
+
+                            docker logout
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -81,19 +132,35 @@ pipeline {
                     usernameVariable: 'GIT_USER',
                     passwordVariable: 'GIT_PASS'
                 )]) {
-                    bat '''
-                    git config user.name "%GIT_USER%"
-                    git config user.email "jenkins@example.com"
+                    script {
+                        if (isUnix()) {
+                            sh '''
+                            git config user.name "$GIT_USER"
+                            git config user.email "jenkins@example.com"
 
-                    git fetch origin
-                    git checkout main || git checkout -b main
-                    git pull origin main --rebase
-                    git merge origin/dev --no-edit
-                    git push https://%GIT_USER%:%GIT_PASS%@github.com/Rifaq-123/Admin_Module.git main
-                    '''
+                            git fetch origin
+                            git checkout main || git checkout -b main
+                            git pull origin main --rebase
+                            git merge origin/dev --no-edit
+                            git push https://$GIT_USER:$GIT_PASS@github.com/Rifaq-123/Admin_Module.git main
+                            '''
+                        } else {
+                            bat '''
+                            git config user.name "%GIT_USER%"
+                            git config user.email "jenkins@example.com"
+
+                            git fetch origin
+                            git checkout main || git checkout -b main
+                            git pull origin main --rebase
+                            git merge origin/dev --no-edit
+                            git push https://%GIT_USER%:%GIT_PASS%@github.com/Rifaq-123/Admin_Module.git main
+                            '''
+                        }
+                    }
                 }
             }
         }
+
     }
 
     post {
