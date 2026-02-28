@@ -1,115 +1,64 @@
+// src/Pages/admin/ViewTeachers.jsx
+
 import React, { useEffect, useState } from "react";
-import { Table, Button, Spinner, InputGroup, Form } from "react-bootstrap";
-import { getAllTeachers, deleteTeacher } from "../../api/adminService";
-import { useNavigate } from "react-router-dom";
+import { Card, Row, Col, Spinner, Alert, Badge } from "react-bootstrap";
+import { getTeachers } from "../../api/adminService";
 
 function ViewTeachers() {
   const [teachers, setTeachers] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  const loadTeachers = async () => {
-    try {
-      const data = await getAllTeachers();
-      setTeachers(data);
-      setFiltered(data);
-    } catch (err) {
-      console.error("❌ Failed to fetch teachers", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadTeachers();
+    const fetchTeachers = async () => {
+      try {
+        const data = await getTeachers();
+        setTeachers(data);
+      } catch {
+        setError("Failed to fetch teachers");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeachers();
   }, []);
 
-  useEffect(() => {
-    const result = teachers.filter((t) =>
-      t.name?.toLowerCase().includes(search.toLowerCase())
-    );
-    setFiltered(result);
-  }, [search, teachers]);
-
-  const handleDelete = async (id) => {
-    if (window.confirm("⚠️ Are you sure you want to delete this teacher?")) {
-      try {
-        await deleteTeacher(id);
-        alert("✅ Teacher deleted!");
-        loadTeachers();
-      } catch (err) {
-        alert("❌ Failed to delete teacher.");
-      }
-    }
-  };
-
-  if (loading)
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" />
-      </div>
-    );
-
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="fw-bold text-primary">All Teachers</h4>
-        <InputGroup style={{ maxWidth: "300px" }}>
-          <Form.Control
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </InputGroup>
-      </div>
+    <Card className="shadow-sm border-0 p-4" style={{ maxWidth: "1000px", margin: "auto" }}>
+      <h3 className="text-primary text-center mb-4 fw-bold">
+        View Teachers
+      </h3>
 
-      <Table striped bordered hover responsive className="shadow-sm">
-        <thead className="table-primary">
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Department</th>
-            <th>Specialization</th>
-            <th>Qualification</th>
-            <th>Experience</th>
-            <th>Date of Joining</th>
-            <th>Password</th>
-            <th>City</th>
-            <th>Country</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.length === 0 ? (
-            <tr>
-              <td colSpan="13" className="text-center text-muted">
-                No teachers found.
-              </td>
-            </tr>
-          ) : (
-            filtered.map((teacher, idx) => (
-              <tr key={teacher.id}>
-                <td>{idx + 1}</td>
-                <td>{teacher.name}</td>
-                <td>{teacher.email}</td>
-                <td>{teacher.phone}</td>
-                <td>{teacher.department}</td>
-                <td>{teacher.specialization}</td>
-                <td>{teacher.qualification}</td>
-                <td>{teacher.experience}</td>
-                <td>{teacher.dateOfJoining}</td>
-                <td>{teacher.password}</td>
-                <td>{teacher.city}</td>
-                <td>{teacher.country}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
-    </div>
+      {error && <Alert variant="danger">{error}</Alert>}
+
+      {loading ? (
+        <div className="text-center">
+          <Spinner />
+        </div>
+      ) : teachers.length === 0 ? (
+        <Alert variant="info">No teachers found</Alert>
+      ) : (
+        <Row>
+          {teachers.map((teacher) => (
+            <Col md={6} key={teacher.id} className="mb-3">
+              <Card className="p-3 bg-light border-0 shadow-sm">
+                <h5 className="fw-bold">{teacher.name}</h5>
+                <p><strong>Email:</strong> {teacher.email}</p>
+                <p><strong>Department:</strong> 
+                  <Badge bg="secondary" className="ms-2">
+                    {teacher.department}
+                  </Badge>
+                </p>
+                <p><strong>Subject:</strong> {teacher.subject}</p>
+                <p><strong>Experience:</strong> {teacher.experience} yrs</p>
+                <p><strong>City:</strong> {teacher.city}</p>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
+    </Card>
   );
 }
 

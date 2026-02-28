@@ -1,102 +1,84 @@
+// src/Pages/admin/ViewStudents.jsx
+
 import React, { useEffect, useState } from "react";
-import { Table, Form, InputGroup, Spinner } from "react-bootstrap";
-import { getAllStudents} from "../../api/adminService";
+import { Card, Table, Spinner, Alert, Badge } from "react-bootstrap";
+import { getStudents } from "../../api/adminService";
 
 function ViewStudents() {
   const [students, setStudents] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const loadStudents = async () => {
+  const fetchStudents = async () => {
     try {
-      const data = await getAllStudents();
+      const data = await getStudents();
       setStudents(data);
-      setFiltered(data);
     } catch (err) {
-      console.error("❌ Failed to fetch students:", err);
+      setError("Failed to fetch students");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadStudents();
+    fetchStudents();
   }, []);
 
-  useEffect(() => {
-    const result = students.filter((s) =>
-      s.name.toLowerCase().includes(search.toLowerCase())
-    );
-    setFiltered(result);
-  }, [search, students]);
-
-  if (loading) {
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="fw-bold text-primary">All Students</h4>
-        <InputGroup style={{ maxWidth: "300px" }}>
-          <Form.Control
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </InputGroup>
-      </div>
+    <Card className="shadow-sm border-0 p-4">
+      <h3 className="fw-bold text-primary mb-4 text-center">
+        Students List
+      </h3>
 
-      <Table striped bordered hover responsive className="shadow-sm">
-        <thead className="table-primary">
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Department</th>
-            <th>Course</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Country</th>
-            <th>Join Date</th>
-            <th>End Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.length === 0 ? (
+      {error && <Alert variant="danger">{error}</Alert>}
+
+      {loading ? (
+        <div className="text-center py-4">
+          <Spinner animation="border" />
+        </div>
+      ) : students.length === 0 ? (
+        <Alert variant="info">No students found.</Alert>
+      ) : (
+        <Table striped bordered hover responsive>
+          <thead className="table-dark">
             <tr>
-              <td colSpan="13" className="text-center text-muted">
-                No students found.
-              </td>
+              <th>Roll No</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Course</th>
+              <th>City</th>
+              <th>Date of Joining</th>
+              <th>Phone</th>
+              <th>State</th>
+              <th>Country</th>
+              <th>Address</th>
             </tr>
-          ) : (
-            filtered.map((student, idx) => (
+          </thead>
+          <tbody>
+            {students.map((student, index) => (
               <tr key={student.id}>
-                <td>{idx + 1}</td>
+                <td>{student.rollNo}</td>
                 <td>{student.name}</td>
                 <td>{student.email}</td>
-                <td>{student.phone}</td>
-                <td>{student.department}</td>
-                <td>{student.course}</td>
-                <td>{student.address}</td>
-                <td>{student.city}</td>
-                <td>{student.state}</td>
-                <td>{student.country}</td>
-                <td>{student.dateOfJoining}</td>
-                <td>{student.endDate}</td>
+                <td>
+                  <Badge bg="secondary">
+                    {student.department || "N/A"}
+                  </Badge>
+                </td>
+                <td>{student.course || "N/A"}</td>
+                <td>{student.city || "N/A"}</td>
+                <td>{student.dateOfJoining || "N/A"}</td>
+                <td>{student.phone || "N/A" }</td>
+                <td>{student.state || "N/A" }</td>
+                <td>{student.country || "N/A" }</td>
+                <td>{student.address || "N/A" }</td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
-    </div>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </Card>
   );
 }
 

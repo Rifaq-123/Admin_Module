@@ -5,46 +5,90 @@ import com.jvlcode.spring_boot_demo.services.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/admin/teachers")
-@CrossOrigin(origins = "https://admin-module-wuq1.vercel.app/")
 public class AdminTeacherController {
 
     @Autowired
     private AdminService adminService;
 
-    // ✅ Get all teachers
+    // ===============================
+    // 👩‍🏫 Get All Teachers
+    // ===============================
     @GetMapping
-    public List<Teacher> getAllTeachers() {
-        return adminService.getAllTeachers();
+    public ResponseEntity<?> getAllTeachers() {
+        return ResponseEntity.ok(adminService.getAllTeachers());
     }
 
-    // ✅ Get teacher by ID
+    // ===============================
+    // 👩‍🏫 Get Teacher By ID
+    // ===============================
     @GetMapping("/{id}")
-    public Teacher getTeacherById(@PathVariable Long id) {
-        return adminService.getTeacherById(id);
+    public ResponseEntity<?> getTeacherById(@PathVariable Long id) {
+
+        Teacher teacher = adminService.getTeacherById(id);
+
+        if (teacher == null) {
+            return ResponseEntity.status(404)
+                    .body(Map.of("message", "Teacher not found"));
+        }
+
+        return ResponseEntity.ok(teacher);
     }
 
-    // ✅ Add new teacher
+    // ===============================
+    // 👩‍🏫 Add Teacher
+    // ===============================
     @PostMapping
-    public ResponseEntity<Teacher> addTeacher(@RequestBody Teacher teacher) {
-        System.out.println("🟢 Received teacher: " + teacher);
-        Teacher saved = adminService.addTeacher(teacher);
-        System.out.println("✅ Saved teacher: " + saved);
-        return ResponseEntity.ok(saved);
-    }
+    public ResponseEntity<?> addTeacher(@RequestBody Teacher teacher) {
 
-    // ✅ Update teacher by ID
+        try {
+            Teacher saved = adminService.addTeacher(teacher);
+            return ResponseEntity.ok(saved);
+
+        } catch (Exception e) {
+            e.printStackTrace();   // 👈 VERY IMPORTANT
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", e.getMessage()));
+        }
+    }
+    // ===============================
+    // 👩‍🏫 Update Teacher
+    // ===============================
     @PutMapping("/{id}")
-    public ResponseEntity<Teacher> updateTeacher(@PathVariable Long id, @RequestBody Teacher teacher) {
-        return ResponseEntity.ok(adminService.updateTeacher(id, teacher));
+    public ResponseEntity<?> updateTeacher(
+            @PathVariable Long id,
+            @RequestBody Teacher teacher
+    ) {
+
+        Teacher updated = adminService.updateTeacher(id, teacher);
+
+        if (updated == null) {
+            return ResponseEntity.status(404)
+                    .body(Map.of("message", "Teacher not found"));
+        }
+
+        return ResponseEntity.ok(updated);
     }
 
-    // ✅ Delete teacher by ID
+    // ===============================
+    // 👩‍🏫 Delete Teacher
+    // ===============================
     @DeleteMapping("/{id}")
-    public ResponseEntity<Boolean> deleteTeacher(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.deleteTeacher(id));
+    public ResponseEntity<?> deleteTeacher(@PathVariable Long id) {
+
+        boolean deleted = adminService.deleteTeacher(id);
+
+        if (!deleted) {
+            return ResponseEntity.status(404)
+                    .body(Map.of("message", "Teacher not found"));
+        }
+
+        return ResponseEntity.ok(
+                Map.of("message", "Teacher deleted successfully")
+        );
     }
 }

@@ -1,90 +1,7 @@
-.admin-layout {
-  display: flex;
-  min-height: 100vh;
-  background-color: #f8f9fa;
-}
-
-/* Sidebar Styling */
-.sidebar {
-  width: 240px;
-  background-color: #1e1e2f;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  padding: 25px 0;
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  overflow-y: auto;
-}
-
-.sidebar-title {
-  font-size: 1.3rem;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 20px;
-  color: #fff;
-}
-
-.section-title {
-  font-size: 0.9rem;
-  color: #aaa;
-  text-transform: uppercase;
-  margin: 15px 20px 5px;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  padding: 0;
-}
-
-.nav-item {
-  padding: 12px 20px;
-  color: #bdbdbd;
-  text-decoration: none;
-  transition: all 0.3s;
-  font-size: 0.95rem;
-}
-
-.nav-item:hover,
-.nav-item.active {
-  background-color: #007bff;
-  color: white;
-  font-weight: 600;
-}
-
-/* Logout Button */
-.logout-btn {
-  margin-top: auto;
-  margin: 30px 20px 10px;
-  padding: 10px;
-  width: calc(100% - 40px);
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.logout-btn:hover {
-  background-color: #c82333;
-}
-
-/* Main content area */
-.main-content {
-  flex-grow: 1;
-  margin-left: 240px;
-  padding: 40px;
-  background-color: #fff;
-  min-height: 100vh;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
-}
+/* Sidebar NavLink Styling */
 .nav-link {
   padding: 8px 12px;
-  border-radius: 5px;
+  border-radius: 6px;
   transition: all 0.2s ease-in-out;
   text-decoration: none;
 }
@@ -100,8 +17,9 @@
   font-weight: 600;
 }
 
+/* Logout Button */
 .logout-btn {
-  border-radius: 5px;
+  border-radius: 6px;
   transition: all 0.3s ease;
 }
 

@@ -1,51 +1,36 @@
-import api, { setAuthToken, logout } from "./axiosInstance";
+import api from "./axiosInstance";
 
-// ===============================
-// 👩‍🏫 Teacher Authentication
-// ===============================
-export const teacherLogin = async (data) => {
-  const res = await api.post("/auth/login", { ...data, role: "TEACHER" });
-  if (res.data?.token) setAuthToken(res.data.token);
-  return res;
+export const getAllMarks = async () => {
+  const res = await api.get("/teacher/marks");
+  return res.data;
 };
 
-export const teacherRegister = (data) =>
-  api.post("/auth/register", { ...data, role: "TEACHER" });
+export const getMarksByStudent = async (id) => {
+  const res = await api.get(`/teacher/marks/${id}`);
+  return res.data;
+};
 
-// ===============================
-// 📊 Manage Marks
-// ===============================
-export const getAllMarks = () => api.get("/teacher/marks");
-export const getMarksByStudent = (id) => api.get(`/teacher/marks/${id}`);
-export const updateMarks = (id, marksData) => api.put(`/teacher/marks/${id}`, marksData);
+export const updateMarks = async (id, marksData) => {
+  const res = await api.put(`/teacher/marks/${id}`, marksData);
+  return res.data;
+};
 
-// ===============================
-// 🗓️ Manage Attendance
-// ===============================
-export const getAttendanceByStudent = (id) => api.get(`/teacher/attendance/${id}`);
-export const updateAttendance = (id, attendanceData) =>
-  api.put(`/teacher/attendance/${id}`, attendanceData);
+export const getAttendanceByStudent = async (id) => {
+  const res = await api.get(`/teacher/attendance/${id}`);
+  return res.data;
+};
 
-// ===============================
-// 👤 Teacher Profile
-// ===============================
-export const getTeacherProfile = (id) => api.get(`/teacher/profile/${id}`);
-export const updateTeacherProfile = (id, data) => api.put(`/teacher/profile/${id}`, data);
+export const updateAttendance = async (id, attendanceData) => {
+  const res = await api.put(`/teacher/attendance/${id}`, attendanceData);
+  return res.data;
+};
 
-// ===============================
-// 🚪 Logout
-// ===============================
-export { logout };
+export const getTeacherProfile = async (id) => {
+  const res = await api.get(`/teacher/profile/${id}`);
+  return res.data;
+};
 
-export default {
-  teacherLogin,
-  teacherRegister,
-  getAllMarks,
-  getMarksByStudent,
-  updateMarks,
-  getAttendanceByStudent,
-  updateAttendance,
-  getTeacherProfile,
-  updateTeacherProfile,
-  logout,
+export const updateTeacherProfile = async (id, data) => {
+  const res = await api.put(`/teacher/profile/${id}`, data);
+  return res.data;
 };

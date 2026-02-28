@@ -5,6 +5,7 @@ import com.jvlcode.spring_boot_demo.entity.Teacher;
 import com.jvlcode.spring_boot_demo.repository.StudentRepository;
 import com.jvlcode.spring_boot_demo.repository.TeacherRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,10 +19,29 @@ public class AdminService {
     @Autowired
     private TeacherRepository teacherRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     // ===============================
     // 🎓 STUDENT MANAGEMENT
     // ===============================
+
     public Student addStudent(Student student) {
+
+        // 🔢 Generate Roll Number
+        Long lastId = studentRepository.findTopByOrderByIdDesc()
+                .map(Student::getId)
+                .orElse(0L);
+
+        String rollNo = String.format("STU%03d", lastId + 1);
+
+        student.setRollNo(rollNo);
+
+        // 🔐 Encode password
+        student.setPassword(
+                passwordEncoder.encode(student.getPassword())
+        );
+
         return studentRepository.save(student);
     }
 
@@ -29,11 +49,12 @@ public class AdminService {
         return studentRepository.findAll();
     }
 
-    public Student getStudentById(Long id) {
-        return studentRepository.findById(id).orElse(null);
+    public Student getStudentByRollNo(String rollNo) {
+        return studentRepository.findByRollNo(rollNo).orElse(null);
     }
 
     public Student updateStudent(Long id, Student updatedStudent) {
+
         Student existing = studentRepository.findById(id).orElse(null);
         if (existing == null) return null;
 
@@ -47,7 +68,15 @@ public class AdminService {
         existing.setState(updatedStudent.getState());
         existing.setCountry(updatedStudent.getCountry());
         existing.setDateOfJoining(updatedStudent.getDateOfJoining());
-        existing.setPassword(updatedStudent.getPassword());
+
+        // 🔐 Only update password if provided
+        if (updatedStudent.getPassword() != null &&
+                !updatedStudent.getPassword().isBlank()) {
+
+            existing.setPassword(
+                    passwordEncoder.encode(updatedStudent.getPassword())
+            );
+        }
 
         return studentRepository.save(existing);
     }
@@ -61,7 +90,13 @@ public class AdminService {
     // ===============================
     // 👩‍🏫 TEACHER MANAGEMENT
     // ===============================
+
     public Teacher addTeacher(Teacher teacher) {
+
+        teacher.setPassword(
+                passwordEncoder.encode(teacher.getPassword())
+        );
+
         return teacherRepository.save(teacher);
     }
 
@@ -74,6 +109,7 @@ public class AdminService {
     }
 
     public Teacher updateTeacher(Long id, Teacher updatedTeacher) {
+
         Teacher existing = teacherRepository.findById(id).orElse(null);
         if (existing == null) return null;
 
@@ -88,7 +124,14 @@ public class AdminService {
         existing.setState(updatedTeacher.getState());
         existing.setCountry(updatedTeacher.getCountry());
         existing.setDateOfJoining(updatedTeacher.getDateOfJoining());
-        existing.setPassword(updatedTeacher.getPassword());
+
+        if (updatedTeacher.getPassword() != null &&
+                !updatedTeacher.getPassword().isBlank()) {
+
+            existing.setPassword(
+                    passwordEncoder.encode(updatedTeacher.getPassword())
+            );
+        }
 
         return teacherRepository.save(existing);
     }

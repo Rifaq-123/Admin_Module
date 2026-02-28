@@ -1,125 +1,122 @@
-import React, { useEffect, useState } from "react";
-import { Table, Button, Form, InputGroup, Spinner } from "react-bootstrap";
-import { getAllStudents, deleteStudent } from "../../api/adminService";
+// src/Pages/admin/RemoveStudent.jsx
 
-function ViewStudents() {
-  const [students, setStudents] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+import React, { useState } from "react";
+import {
+  Card,
+  Form,
+  Button,
+  Row,
+  Col,
+  Alert,
+  Spinner,
+} from "react-bootstrap";
 
-  const loadStudents = async () => {
+import {
+  getStudentByRollNo,
+  deleteStudent,
+} from "../../api/adminService";
+
+function RemoveStudent() {
+
+  const [rollNo, setRollNo] = useState("");
+  const [studentId, setStudentId] = useState(null);
+  const [student, setStudent] = useState(null);
+  const [fetching, setFetching] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  const handleFetch = async () => {
+    if (!rollNo) return;
+
+    setFetching(true);
+    setError(null);
+    setSuccess(null);
+    setStudent(null);
+
     try {
-      const data = await getAllStudents();
-      setStudents(data);
-      setFiltered(data);
+      const data = await getStudentByRollNo(rollNo);
+
+      setStudent(data);
+      setStudentId(data.id);
+
     } catch (err) {
-      console.error("❌ Failed to fetch students:", err);
+      setError("Student not found");
     } finally {
-      setLoading(false);
+      setFetching(false);
     }
   };
 
-  useEffect(() => {
-    loadStudents();
-  }, []);
+  const handleDelete = async () => {
+    if (!studentId) return;
 
-  useEffect(() => {
-    const result = students.filter((s) =>
-      s.name.toLowerCase().includes(search.toLowerCase())
-    );
-    setFiltered(result);
-  }, [search, students]);
+    setDeleting(true);
+    setError(null);
+    setSuccess(null);
 
-  const handleDelete = async (id) => {
-    if (window.confirm("⚠️ Are you sure you want to delete this student?")) {
-      try {
-        await deleteStudent(id);
-        alert("✅ Student deleted!");
-        loadStudents();
-      } catch (err) {
-        alert("❌ Failed to delete student.");
-      }
+    try {
+      await deleteStudent(studentId);
+
+      setSuccess("Student deleted successfully!");
+      setStudent(null);
+      setRollNo("");
+      setStudentId(null);
+
+    } catch (err) {
+      setError("Failed to delete student");
+    } finally {
+      setDeleting(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
-  }
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="fw-bold text-primary">All Students</h4>
-        <InputGroup style={{ maxWidth: "300px" }}>
-          <Form.Control
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </InputGroup>
-      </div>
+    <Card className="shadow-sm border-0 p-4">
+      <h3 className="text-danger text-center mb-4 fw-bold">
+        Remove Student
+      </h3>
 
-      <Table striped bordered hover responsive className="shadow-sm">
-        <thead className="table-primary">
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Department</th>
-            <th>Course</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Country</th>
-            <th>Join Date</th>
-            <th>End Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.length === 0 ? (
-            <tr>
-              <td colSpan="13" className="text-center text-muted">
-                No students found.
-              </td>
-            </tr>
-          ) : (
-            filtered.map((student, idx) => (
-              <tr key={student.id}>
-                <td>{idx + 1}</td>
-                <td>{student.name}</td>
-                <td>{student.email}</td>
-                <td>{student.phone}</td>
-                <td>{student.department}</td>
-                <td>{student.course}</td>
-                <td>{student.address}</td>
-                <td>{student.city}</td>
-                <td>{student.state}</td>
-                <td>{student.country}</td>
-                <td>{student.dateOfJoining}</td>
-                <td>{student.endDate}</td>
-                <td>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => handleDelete(student.id)}
-                  >
-                    🗑 Delete
-                  </Button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
-    </div>
+      {error && <Alert variant="danger">{error}</Alert>}
+      {success && <Alert variant="success">{success}</Alert>}
+
+      <Row className="mb-4">
+        <Col md={8}>
+          <Form.Control
+            type="text"
+            placeholder="Enter Roll No (e.g., STU001)"
+            value={rollNo}
+            onChange={(e) => setRollNo(e.target.value)}
+          />
+        </Col>
+        <Col md={4}>
+          <Button
+            variant="secondary"
+            className="w-100"
+            onClick={handleFetch}
+            disabled={fetching}
+          >
+            {fetching ? <Spinner size="sm" /> : "Fetch Student"}
+          </Button>
+        </Col>
+      </Row>
+
+      {student && (
+        <Card className="mb-3 p-3 bg-light">
+          <p><strong>Roll No:</strong> {student.rollNo}</p>
+          <p><strong>Name:</strong> {student.name}</p>
+          <p><strong>Email:</strong> {student.email}</p>
+
+          <Button
+            variant="danger"
+            className="w-100 mt-3"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            {deleting ? <Spinner size="sm" /> : "Confirm Delete"}
+          </Button>
+        </Card>
+      )}
+    </Card>
   );
 }
 
-export default ViewStudents;
+export default RemoveStudent;
