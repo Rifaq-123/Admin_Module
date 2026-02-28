@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Card, Form, Button, Row, Col } from "react-bootstrap";
+import { Card, Form, Button, Row, Col, Alert, Spinner } from "react-bootstrap";
 import { addStudent } from "../../api/adminService";
 
 function AddStudent() {
-  const [form, setForm] = useState({
+  const initialState = {
     name: "",
     email: "",
     phone: "",
@@ -13,9 +13,14 @@ function AddStudent() {
     city: "",
     state: "",
     country: "",
-    dateOfJoining: "", // ✅ no auto date
-    password: "student123", // ✅ still default
-  });
+    dateOfJoining: "",
+    password: "student123",
+  };
+
+  const [form, setForm] = useState(initialState);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -23,33 +28,34 @@ function AddStudent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    setLoading(true);
+    setSuccess(null);
+    setError(null);
+
     try {
       await addStudent(form);
-      alert("✅ Student added successfully!");
-      setForm({
-        name: "",
-        email: "",
-        phone: "",
-        department: "",
-        course: "",
-        address: "",
-        city: "",
-        state: "",
-        country: "",
-        dateOfJoining: "",
-        password: "student123",
-      });
+      setSuccess("Student added successfully!");
+      setForm(initialState);
     } catch (err) {
-      console.error("❌ Failed to add student:", err);
-      alert("❌ Failed to add student.");
+      setError(err || "Failed to add student");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Card className="shadow p-4" style={{ maxWidth: "900px", margin: "auto" }}>
-      <h3 className="text-primary text-center mb-4">Add Student</h3>
+    <Card className="shadow-sm border-0 p-4" style={{ maxWidth: "900px", margin: "auto" }}>
+      <h3 className="text-primary text-center mb-4 fw-bold">
+        Add Student
+      </h3>
+
+      {success && <Alert variant="success">{success}</Alert>}
+      {error && <Alert variant="danger">{error}</Alert>}
+
       <Form onSubmit={handleSubmit}>
         <Row>
+
           <Col md={6}>
             <Form.Group className="mb-3">
               <Form.Label>Full Name</Form.Label>
@@ -181,10 +187,23 @@ function AddStudent() {
               />
             </Form.Group>
           </Col>
+
         </Row>
 
-        <Button variant="primary" type="submit" className="w-100">
-          ➕ Add Student
+        <Button
+          variant="primary"
+          type="submit"
+          className="w-100"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Spinner size="sm" className="me-2" />
+              Adding...
+            </>
+          ) : (
+            "➕ Add Student"
+          )}
         </Button>
       </Form>
     </Card>

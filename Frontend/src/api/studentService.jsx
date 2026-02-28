@@ -1,44 +1,21 @@
-import api, { setAuthToken, logout } from "./axiosInstance";
+import api from "./axiosInstance";
 
-// ===============================
-// 🧑‍🎓 Student Authentication
-// ===============================
-export const studentLogin = async (data) => {
-  const res = await api.post("/auth/login", { ...data, role: "STUDENT" });
-  if (res.data?.token) setAuthToken(res.data.token);
-  return res;
+export const getMyMarks = async (id) => {
+  const res = await api.get(`/student/marks/${id}`);
+  return res.data;
 };
 
-export const studentRegister = (data) =>
-  api.post("/auth/register", { ...data, role: "STUDENT" });
+export const getMyAttendance = async (id) => {
+  const res = await api.get(`/student/attendance/${id}`);
+  return res.data;
+};
 
-// ===============================
-// 📊 View Marks
-// ===============================
-export const getMyMarks = (id) => api.get(`/student/marks/${id}`);
+export const getMyProfile = async (id) => {
+  const res = await api.get(`/student/profile/${id}`);
+  return res.data;
+};
 
-// ===============================
-// 🗓️ View Attendance
-// ===============================
-export const getMyAttendance = (id) => api.get(`/student/attendance/${id}`);
-
-// ===============================
-// 👤 Profile
-// ===============================
-export const getMyProfile = (id) => api.get(`/student/profile/${id}`);
-export const updateMyProfile = (id, data) => api.put(`/student/profile/${id}`, data);
-
-// ===============================
-// 🚪 Logout
-// ===============================
-export { logout };
-
-export default {
-  studentLogin,
-  studentRegister,
-  getMyMarks,
-  getMyAttendance,
-  getMyProfile,
-  updateMyProfile,
-  logout,
+export const updateMyProfile = async (id, data) => {
+  const res = await api.put(`/student/profile/${id}`, data);
+  return res.data;
 };

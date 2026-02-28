@@ -1,131 +1,235 @@
-import React, { useEffect, useState } from "react";
-import { Table, Button, Form, InputGroup, Spinner } from "react-bootstrap";
-import { getAllStudents, deleteStudent } from "../../api/adminService";
-import { useNavigate } from "react-router-dom";
+// src/Pages/admin/EditStudent.jsx
 
-function ViewStudents() {
-  const [students, setStudents] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+import React, { useState } from "react";
+import {
+  Card,
+  Form,
+  Button,
+  Row,
+  Col,
+  Alert,
+  Spinner,
+} from "react-bootstrap";
 
-  const loadStudents = async () => {
+import {
+  getStudentByRollNo,
+  updateStudent,
+} from "../../api/adminService";
+
+function EditStudent() {
+
+  // ✅ Proper states
+  const [rollNo, setRollNo] = useState("");
+  const [studentId, setStudentId] = useState(null);
+  const [form, setForm] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  // ===============================
+  // 🔍 Fetch by Roll No
+  // ===============================
+  const handleFetch = async () => {
+    if (!rollNo) return;
+
+    setFetching(true);
+    setError(null);
+    setSuccess(null);
+
     try {
-      const data = await getAllStudents();
-      setStudents(data);
-      setFiltered(data);
+      const data = await getStudentByRollNo(rollNo);
+
+      setForm(data);
+      setStudentId(data.id); // store ID internally
+
     } catch (err) {
-      console.error("❌ Failed to fetch students:", err);
+      setError("Student not found");
+      setForm(null);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  // ===============================
+  // ✏ Handle Form Change
+  // ===============================
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  // ===============================
+  // 🔄 Update Student
+  // ===============================
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+
+    if (!studentId) return;
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await updateStudent(studentId, form);
+      setSuccess("Student updated successfully!");
+    } catch (err) {
+      setError("Failed to update student");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadStudents();
-  }, []);
-
-  useEffect(() => {
-    const result = students.filter((s) =>
-      s.name.toLowerCase().includes(search.toLowerCase())
-    );
-    setFiltered(result);
-  }, [search, students]);
-
-  const handleDelete = async (id) => {
-    if (window.confirm("⚠️ Are you sure you want to delete this student?")) {
-      try {
-        await deleteStudent(id);
-        alert("✅ Student deleted!");
-        loadStudents();
-      } catch (err) {
-        alert("❌ Failed to delete student.");
-      }
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="text-center mt-5">
-        <Spinner animation="border" variant="primary" />
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="fw-bold text-primary">All Students</h4>
-        <InputGroup style={{ maxWidth: "300px" }}>
+    <Card className="shadow-sm border-0 p-4">
+      <h3 className="text-primary text-center mb-4 fw-bold">
+        Edit Student
+      </h3>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+      {success && <Alert variant="success">{success}</Alert>}
+
+      {/* Fetch Section */}
+      <Row className="mb-4">
+        <Col md={8}>
           <Form.Control
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            type="text"
+            placeholder="Enter Roll No (e.g., STU001)"
+            value={rollNo}
+            onChange={(e) => setRollNo(e.target.value)}
           />
-        </InputGroup>
-      </div>
+        </Col>
+        <Col md={4}>
+          <Button
+            variant="info"
+            className="w-100"
+            onClick={handleFetch}
+            disabled={fetching}
+          >
+            {fetching ? <Spinner size="sm" /> : "Fetch Student"}
+          </Button>
+        </Col>
+      </Row>
 
-      <Table striped bordered hover responsive className="shadow-sm">
-        <thead className="table-primary">
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Department</th>
-            <th>Course</th>
-            <th>Address</th>
-            <th>City</th>
-            <th>State</th>
-            <th>Country</th>
-            <th>Join Date</th>
-            <th>End Date</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered.length === 0 ? (
-            <tr>
-              <td colSpan="13" className="text-center text-muted">
-                No students found.
-              </td>
-            </tr>
-          ) : (
-            filtered.map((student, idx) => (
-              <tr key={student.id}>
-                <td>{idx + 1}</td>
-                <td>{student.name}</td>
-                <td>{student.email}</td>
-                <td>{student.phone}</td>
-                <td>{student.department}</td>
-                <td>{student.course}</td>
-                <td>{student.address}</td>
-                <td>{student.city}</td>
-                <td>{student.state}</td>
-                <td>{student.country}</td>
-                <td>{student.dateOfJoining}</td>
-                <td>{student.endDate}</td>
-                <td>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    className="me-2"
-                    onClick={() =>
-                      navigate(`/admin/students/edit/${student.id}/form`)
+      {/* Edit Form */}
+      {form && (
+        <Form onSubmit={handleUpdate}>
+          <Row>
 
-                    }
-                  >
-                    ✏️ Edit
-                  </Button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </Table>
-    </div>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Full Name</Form.Label>
+                <Form.Control
+                  name="name"
+                  value={form.name || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Email</Form.Label>
+                <Form.Control
+                  name="email"
+                  value={form.email || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Phone</Form.Label>
+                <Form.Control
+                  name="phone"
+                  value={form.phone || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Department</Form.Label>
+                <Form.Control
+                  name="department"
+                  value={form.department || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Course</Form.Label>
+                <Form.Control
+                  name="course"
+                  value={form.course || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>City</Form.Label>
+                <Form.Control
+                  name="city"
+                  value={form.city || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>State</Form.Label>
+                <Form.Control
+                  name="state"
+                  value={form.state || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Country</Form.Label>
+                <Form.Control
+                  name="country"
+                  value={form.country || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Date of Joining</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="dateOfJoining"
+                  value={form.dateOfJoining || ""}
+                  onChange={handleChange}
+                />
+              </Form.Group>
+            </Col>
+
+          </Row>
+
+          <Button
+            type="submit"
+            variant="warning"
+            className="w-100"
+            disabled={loading}
+          >
+            {loading ? <Spinner size="sm" /> : "Update Student"}
+          </Button>
+        </Form>
+      )}
+    </Card>
   );
 }
 
-export default ViewStudents;
+export default EditStudent;
