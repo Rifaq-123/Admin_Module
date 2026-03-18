@@ -2,11 +2,15 @@ package com.jvlcode.spring_boot_demo.controllers;
 
 import com.jvlcode.spring_boot_demo.entity.Teacher;
 import com.jvlcode.spring_boot_demo.services.AdminService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.Map;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/teachers")
@@ -19,76 +23,70 @@ public class AdminTeacherController {
     // 👩‍🏫 Get All Teachers
     // ===============================
     @GetMapping
-    public ResponseEntity<?> getAllTeachers() {
+    public ResponseEntity<?> getAllTeachers(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir
+    ) {
+        // Paginated if params provided
+        if (page != null && size != null) {
+            Page<Teacher> teachers = adminService.getAllTeachersPaginated(page, size, sortBy, sortDir);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("content", teachers.getContent());
+            response.put("currentPage", teachers.getNumber());
+            response.put("totalItems", teachers.getTotalElements());
+            response.put("totalPages", teachers.getTotalPages());
+            response.put("hasNext", teachers.hasNext());
+            response.put("hasPrevious", teachers.hasPrevious());
+
+            return ResponseEntity.ok(response);
+        }
+
+        // Simple list otherwise
         return ResponseEntity.ok(adminService.getAllTeachers());
     }
 
-    // ===============================
-    // 👩‍🏫 Get Teacher By ID
-    // ===============================
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllTeachersList() {
+        return ResponseEntity.ok(adminService.getAllTeachers());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<?> getTeacherById(@PathVariable Long id) {
-
-        Teacher teacher = adminService.getTeacherById(id);
-
-        if (teacher == null) {
-            return ResponseEntity.status(404)
-                    .body(Map.of("message", "Teacher not found"));
-        }
-
-        return ResponseEntity.ok(teacher);
+        return ResponseEntity.ok(adminService.getTeacherById(id));
     }
 
-    // ===============================
-    // 👩‍🏫 Add Teacher
-    // ===============================
     @PostMapping
-    public ResponseEntity<?> addTeacher(@RequestBody Teacher teacher) {
-
-        try {
-            Teacher saved = adminService.addTeacher(teacher);
-            return ResponseEntity.ok(saved);
-
-        } catch (Exception e) {
-            e.printStackTrace();   // 👈 VERY IMPORTANT
-            return ResponseEntity.badRequest()
-                    .body(Map.of("message", e.getMessage()));
-        }
+    public ResponseEntity<?> addTeacher(@Valid @RequestBody Teacher teacher) {
+        Teacher saved = adminService.addTeacher(teacher);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Teacher added successfully",
+                "teacher", saved
+        ));
     }
-    // ===============================
-    // 👩‍🏫 Update Teacher
-    // ===============================
+
     @PutMapping("/{id}")
     public ResponseEntity<?> updateTeacher(
             @PathVariable Long id,
-            @RequestBody Teacher teacher
+            @Valid @RequestBody Teacher teacher
     ) {
-
         Teacher updated = adminService.updateTeacher(id, teacher);
-
-        if (updated == null) {
-            return ResponseEntity.status(404)
-                    .body(Map.of("message", "Teacher not found"));
-        }
-
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Teacher updated successfully",
+                "teacher", updated
+        ));
     }
 
-    // ===============================
-    // 👩‍🏫 Delete Teacher
-    // ===============================
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteTeacher(@PathVariable Long id) {
-
-        boolean deleted = adminService.deleteTeacher(id);
-
-        if (!deleted) {
-            return ResponseEntity.status(404)
-                    .body(Map.of("message", "Teacher not found"));
-        }
-
-        return ResponseEntity.ok(
-                Map.of("message", "Teacher deleted successfully")
-        );
+        adminService.deleteTeacher(id);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Teacher deleted successfully"
+        ));
     }
 }
