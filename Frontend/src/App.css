@@ -45,3 +45,112 @@
   transform: translateY(-6px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
 }
+
+/* styles/AdminStyles.css - Add these styles */
+
+/* ✅ Spin animation for refresh button */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ✅ Skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-text {
+  height: 1rem;
+  width: 100%;
+}
+
+.skeleton-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+/* ✅ Table row hover */
+.table-modern tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.table-modern tbody tr:hover {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+/* ✅ Pagination styles */
+.pagination {
+  margin: 0;
+}
+
+.pagination .page-link {
+  border: none;
+  color: #64748b;
+  padding: 0.5rem 0.75rem;
+  margin: 0 2px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.pagination .page-link:hover {
+  background-color: #f1f5f9;
+  color: #10b981;
+}
+
+.pagination .page-item.active .page-link {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+}
+
+.pagination .page-item.disabled .page-link {
+  background-color: transparent;
+  color: #cbd5e1;
+}
+
+/* ✅ Smooth transitions */
+.card-modern,
+.table-modern,
+.form-control-modern {
+  transition: all 0.3s ease;
+}
+
+/* ✅ Loading overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: inherit;
+}

@@ -1,24 +1,10 @@
-// src/Pages/admin/EditStudent.jsx
-
 import React, { useState } from "react";
-import {
-  Card,
-  Form,
-  Button,
-  Row,
-  Col,
-  Alert,
-  Spinner,
-} from "react-bootstrap";
-
-import {
-  getStudentByRollNo,
-  updateStudent,
-} from "../../api/adminService";
+import { Row, Col, Form, Spinner } from "react-bootstrap";
+import { Search, Save, UserCheck, CheckCircle, XCircle } from "lucide-react";
+import { getStudentByRollNo, updateStudent } from "../../api/adminService";
+import "../../styles/AdminStyles.css";
 
 function EditStudent() {
-
-  // ✅ Proper states
   const [rollNo, setRollNo] = useState("");
   const [studentId, setStudentId] = useState(null);
   const [form, setForm] = useState(null);
@@ -27,43 +13,30 @@ function EditStudent() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  // ===============================
-  // 🔍 Fetch by Roll No
-  // ===============================
   const handleFetch = async () => {
     if (!rollNo) return;
-
     setFetching(true);
     setError(null);
     setSuccess(null);
 
     try {
       const data = await getStudentByRollNo(rollNo);
-
       setForm(data);
-      setStudentId(data.id); // store ID internally
-
+      setStudentId(data.id);
     } catch (err) {
-      setError("Student not found");
+      setError(err.message || "Student not found");
       setForm(null);
     } finally {
       setFetching(false);
     }
   };
 
-  // ===============================
-  // ✏ Handle Form Change
-  // ===============================
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // ===============================
-  // 🔄 Update Student
-  // ===============================
   const handleUpdate = async (e) => {
     e.preventDefault();
-
     if (!studentId) return;
 
     setLoading(true);
@@ -74,161 +47,212 @@ function EditStudent() {
       await updateStudent(studentId, form);
       setSuccess("Student updated successfully!");
     } catch (err) {
-      setError("Failed to update student");
+      setError(err.message || "Failed to update student");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card className="shadow-sm border-0 p-4">
-      <h3 className="text-primary text-center mb-4 fw-bold">
-        Edit Student
-      </h3>
+    <div>
+      {/* Page Header */}
+      <div className="page-header">
+        <h1 className="page-title">Update Student</h1>
+        <p className="page-subtitle">Search and update student information</p>
+      </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
-      {success && <Alert variant="success">{success}</Alert>}
+      {/* Alerts */}
+      {success && (
+        <div className="alert-modern alert-success-modern mb-4">
+          <CheckCircle size={20} />
+          <span>{success}</span>
+        </div>
+      )}
 
-      {/* Fetch Section */}
-      <Row className="mb-4">
-        <Col md={8}>
-          <Form.Control
-            type="text"
-            placeholder="Enter Roll No (e.g., STU001)"
-            value={rollNo}
-            onChange={(e) => setRollNo(e.target.value)}
-          />
-        </Col>
-        <Col md={4}>
-          <Button
-            variant="info"
-            className="w-100"
-            onClick={handleFetch}
-            disabled={fetching}
-          >
-            {fetching ? <Spinner size="sm" /> : "Fetch Student"}
-          </Button>
-        </Col>
-      </Row>
+      {error && (
+        <div className="alert-modern alert-danger-modern mb-4">
+          <XCircle size={20} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Search Card */}
+      <div className="card-modern mb-4">
+        <div className="card-header-modern">
+          <span>Search Student</span>
+        </div>
+        <div className="card-body-modern">
+          <Row className="align-items-end g-3">
+            <Col md={8}>
+              <Form.Label className="form-label-modern">Roll Number</Form.Label>
+              <div className="position-relative">
+                <Search size={18} className="position-absolute" style={{ left: "12px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+                <Form.Control
+                  className="form-control-modern"
+                  style={{ paddingLeft: "40px" }}
+                  type="text"
+                  placeholder="Enter Roll No (e.g., STU001)"
+                  value={rollNo}
+                  onChange={(e) => setRollNo(e.target.value)}
+                />
+              </div>
+            </Col>
+            <Col md={4}>
+              <button
+                className="btn btn-modern btn-primary-modern w-100"
+                onClick={handleFetch}
+                disabled={fetching}
+              >
+                {fetching ? <Spinner size="sm" /> : <><Search size={18} /> Search</>}
+              </button>
+            </Col>
+          </Row>
+        </div>
+      </div>
 
       {/* Edit Form */}
       {form && (
-        <Form onSubmit={handleUpdate}>
-          <Row>
+        <div className="form-modern">
+          <h6 className="text-uppercase text-muted fw-bold mb-4" style={{ fontSize: "0.75rem", letterSpacing: "1px" }}>
+            Student Information
+          </h6>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Full Name</Form.Label>
-                <Form.Control
-                  name="name"
-                  value={form.name || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+          <Form onSubmit={handleUpdate}>
+            <Row className="g-4">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Full Name</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="name"
+                    value={form.name || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Email</Form.Label>
-                <Form.Control
-                  name="email"
-                  value={form.email || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Email</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="email"
+                    value={form.email || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Phone</Form.Label>
-                <Form.Control
-                  name="phone"
-                  value={form.phone || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Phone</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="phone"
+                    value={form.phone || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Department</Form.Label>
-                <Form.Control
-                  name="department"
-                  value={form.department || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Department</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="department"
+                    value={form.department || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Course</Form.Label>
-                <Form.Control
-                  name="course"
-                  value={form.course || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Course</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="course"
+                    value={form.course || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>City</Form.Label>
-                <Form.Control
-                  name="city"
-                  value={form.city || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Date of Joining</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    type="date"
+                    name="dateOfJoining"
+                    value={form.dateOfJoining || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>State</Form.Label>
-                <Form.Control
-                  name="state"
-                  value={form.state || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">City</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="city"
+                    value={form.city || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Country</Form.Label>
-                <Form.Control
-                  name="country"
-                  value={form.country || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">State</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="state"
+                    value={form.state || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Date of Joining</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="dateOfJoining"
-                  value={form.dateOfJoining || ""}
-                  onChange={handleChange}
-                />
-              </Form.Group>
-            </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label className="form-label-modern">Country</Form.Label>
+                  <Form.Control
+                    className="form-control-modern"
+                    name="country"
+                    value={form.country || ""}
+                    onChange={handleChange}
+                  />
+                </Form.Group>
+              </Col>
 
-          </Row>
-
-          <Button
-            type="submit"
-            variant="warning"
-            className="w-100"
-            disabled={loading}
-          >
-            {loading ? <Spinner size="sm" /> : "Update Student"}
-          </Button>
-        </Form>
+              <Col xs={12} className="mt-4">
+                <button
+                  type="submit"
+                  className="btn btn-modern btn-primary-modern"
+                  disabled={loading}
+                  style={{ width: "100%", justifyContent: "center", padding: "1rem" }}
+                >
+                  {loading ? (
+                    <>
+                      <Spinner size="sm" className="me-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={20} />
+                      Update Student
+                    </>
+                  )}
+                </button>
+              </Col>
+            </Row>
+          </Form>
+        </div>
       )}
-    </Card>
+    </div>
   );
 }
 

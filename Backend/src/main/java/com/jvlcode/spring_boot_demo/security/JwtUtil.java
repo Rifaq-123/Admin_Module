@@ -1,9 +1,11 @@
 package com.jvlcode.spring_boot_demo.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.Keys;
-
+import io.jsonwebtoken.security.SignatureException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -26,25 +28,25 @@ public class JwtUtil {
 
     // 🔐 Generate Token
     public String generateToken(UserDetails userDetails) {
-
+        String role = userDetails.getAuthorities().iterator().next().getAuthority();
+        
         return Jwts.builder()
                 .subject(userDetails.getUsername())
-                .claim("role", userDetails.getAuthorities()
-                        .iterator().next().getAuthority())
+                .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())
                 .compact();
     }
-    
-    public String extractRole(String token) {
-        return extractAllClaims(token).get("role", String.class);
-    }
-    
-    
+
     // 🔍 Extract Username
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    // 🔍 Extract Role
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
     }
 
     // 🔍 Extract Expiration
@@ -61,16 +63,28 @@ public class JwtUtil {
                 .getPayload();
     }
 
-    // ✅ Validate Token Properly
+    // ✅ Validate Token
     public boolean validateToken(String token, UserDetails userDetails) {
-
-        final String username = extractUsername(token);
-
-        return username.equals(userDetails.getUsername())
-                && !isTokenExpired(token);
+        try {
+            final String username = extractUsername(token);
+            return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        } catch (ExpiredJwtException | MalformedJwtException | SignatureException e) {
+            return false;
+        }
     }
 
+    // ✅ Check if token is expired
     private boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
+    }
+
+    // ✅ Validate token format (without user details)
+    public boolean isValidTokenFormat(String token) {
+        try {
+            extractAllClaims(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
