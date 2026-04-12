@@ -2,86 +2,62 @@ import os
 import numpy as np
 import pandas as pd
 import joblib
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import (
+    train_test_split, cross_val_score
+)
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.ensemble import (
+    RandomForestRegressor,
+    GradientBoostingRegressor
+)
 from sklearn.linear_model import Ridge
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from typing import Dict, Any, Tuple, Optional
+from sklearn.metrics import (
+    mean_squared_error,
+    r2_score,
+    mean_absolute_error
+)
+from typing import Dict, Any, Tuple
 
 class TrainingService:
-    """Service for training CGPA prediction model"""
+    """
+    Train model to predict NEXT semester CGPA
+    from past semester CGPAs
+    """
     
     def __init__(self, model_dir: str = 'models'):
         self.model_dir = model_dir
-        self.model_path = os.path.join(model_dir, 'cgpa_predictor.pkl')
-        self.scaler_path = os.path.join(model_dir, 'scaler.pkl')
-        
-        # Ensure model directory exists
+        self.model_path = os.path.join(
+            model_dir, 'cgpa_predictor.pkl'
+        )
+        self.scaler_path = os.path.join(
+            model_dir, 'scaler.pkl'
+        )
         os.makedirs(model_dir, exist_ok=True)
     
-    def train_with_synthetic_data(self, n_samples: int = 1000) -> Dict[str, Any]:
-        """
-        Train model with synthetic data
-        Useful when real data is not available
-        """
-        print("📊 Generating synthetic training data...")
+    def train_with_synthetic_data(
+        self, n_samples: int = 1000
+    ) -> Dict[str, Any]:
+        """Train with synthetic semester CGPA data"""
         
-        # Generate synthetic data
+        print("📊 Generating synthetic CGPA data...")
         X, y = self._generate_synthetic_data(n_samples)
-        
-        # Train model
         return self._train_model(X, y)
     
-    def train_with_database(self, db_url: str) -> Dict[str, Any]:
+    def _generate_synthetic_data(
+        self, n_samples: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Train model with data from database
-        """
-        print("📊 Fetching training data from database...")
+        Generate synthetic training data.
+
+        Logic:
+        - For each student, generate 2-7 past semesters
+        - Then the NEXT semester CGPA is the target
         
-        try:
-            from sqlalchemy import create_engine, text
-            
-            engine = create_engine(db_url)
-            
-            # Fetch marks data
-            query = """
-            SELECT 
-                s.id as student_id,
-                m.semester,
-                AVG(m.marks_obtained / m.total_marks * 100) as avg_percentage
-            FROM marks m
-            JOIN students s ON m.student_id = s.id
-            GROUP BY s.id, m.semester
-            ORDER BY s.id, m.semester
-            """
-            
-            df = pd.read_sql(text(query), engine)
-            
-            if df.empty:
-                return {
-                    "success": False,
-                    "message": "No training data found in database"
-                }
-            
-            # Process data
-            X, y = self._process_database_data(df)
-            
-            # Train model
-            return self._train_model(X, y)
-            
-        except Exception as e:
-            return {
-                "success": False,
-                "message": f"Database training failed: {str(e)}"
-            }
-    
-    def _generate_synthetic_data(self, n_samples: int) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Generate synthetic training data
+        Example:
+          Past CGPAs: [9.0, 6.0]
+          Target (next sem): 4.5  (declining trend)
         
-        Features: [sem1_avg, sem2_avg, ..., sem8_avg, overall_avg, trend, consistency, completed_sems]
-        Target: Final CGPA
+        Features same as DataProcessor._build_feature_vector
         """
         np.random.seed(42)
         
@@ -89,121 +65,131 @@ class TrainingService:
         y = []
         
         for _ in range(n_samples):
-            # Random number of completed semesters (1-8)
-            completed_sems = np.random.randint(1, 9)
+            # Random number of past semesters (2 to 7)
+            # Min 2 so we can calculate trend
+            n_sems = np.random.randint(2, 8)
             
-            # Base performance level (30-95)
-            base_performance = np.random.uniform(30, 95)
+            # Base CGPA for this student (4.0 - 9.5)
+            base_cgpa = np.random.uniform(4.0, 9.5)
             
-            # Generate semester scores with some variation
-            semester_scores = []
-            trend_direction = np.random.choice([-1, 0, 1], p=[0.2, 0.4, 0.4])
+            # Random trend: improving, declining, stable
+            trend_direction = np.random.choice(
+                [-1, 0, 1],
+                p=[0.25, 0.45, 0.30]
+            )
             
-            for sem in range(1, 9):
-                if sem <= completed_sems:
-                    # Score with trend and random variation
-                    score = base_performance + (sem - 1) * trend_direction * 2
-                    score += np.random.normal(0, 5)
-                    score = max(20, min(100, score))  # Clamp to valid range
-                    semester_scores.append(score)
-                else:
-                    semester_scores.append(0)
+            # Generate past semesters
+            past_cgpas = []
+            for sem in range(n_sems):
+                cgpa = base_cgpa + (
+                    sem * trend_direction * 0.3
+                )
+                # Add noise
+                cgpa += np.random.normal(0, 0.4)
+                # Clamp to valid CGPA range
+                cgpa = max(0.0, min(10.0, cgpa))
+                past_cgpas.append(cgpa)
             
-            # Calculate additional features
-            non_zero = [s for s in semester_scores if s > 0]
-            overall_avg = np.mean(non_zero) if non_zero else 0
-            trend = self._calculate_trend(non_zero)
-            consistency = np.std(non_zero) if len(non_zero) > 1 else 0
+            # ── Target: Next semester CGPA ────────────
+            # Based on trend + noise + mean reversion
+            avg = np.mean(past_cgpas)
+            last = past_cgpas[-1]
             
-            # Feature vector
-            features = semester_scores + [overall_avg, trend, consistency, completed_sems]
+            # Predict next with trend and reversion
+            if len(past_cgpas) >= 2:
+                recent_change = (
+                    past_cgpas[-1] - past_cgpas[-2]
+                )
+            else:
+                recent_change = 0.0
             
-            # Target CGPA (0-10 scale)
-            cgpa = (overall_avg / 100) * 10
-            # Add some noise
-            cgpa += np.random.normal(0, 0.1)
-            cgpa = max(0, min(10, cgpa))
+            # 60% recent trend + 40% average
+            predicted_change = (
+                recent_change * 0.6 + 
+                (avg - last) * 0.4
+            )
+            
+            next_cgpa = last + predicted_change
+            next_cgpa += np.random.normal(0, 0.2)
+            next_cgpa = max(0.0, min(10.0, next_cgpa))
+            
+            # ── Build Feature Vector ──────────────────
+            # Same structure as DataProcessor
+            sem_features = [0.0] * 8
+            for i, cgpa in enumerate(past_cgpas):
+                sem_features[i] = cgpa
+            
+            overall_avg = np.mean(past_cgpas)
+            trend = self._calculate_trend(past_cgpas)
+            consistency = np.std(past_cgpas)
+            completed = len(past_cgpas)
+            recent_ch = (
+                past_cgpas[-1] - past_cgpas[-2]
+                if len(past_cgpas) >= 2 else 0.0
+            )
+            weighted = (
+                past_cgpas[-1] * 0.6 + overall_avg * 0.4
+            )
+            
+            features = sem_features + [
+                overall_avg,
+                trend,
+                consistency,
+                completed,
+                recent_ch,
+                weighted
+            ]
             
             X.append(features)
-            y.append(cgpa)
+            y.append(next_cgpa)
         
         return np.array(X), np.array(y)
     
-    def _calculate_trend(self, scores: list) -> float:
-        """Calculate trend from scores"""
-        if len(scores) < 2:
+    def _calculate_trend(
+        self, cgpas: list
+    ) -> float:
+        """Linear regression slope"""
+        if len(cgpas) < 2:
             return 0.0
         
-        x = np.arange(len(scores))
-        y = np.array(scores)
-        
+        x = np.arange(len(cgpas))
+        y = np.array(cgpas)
         n = len(x)
-        if n * np.sum(x ** 2) - np.sum(x) ** 2 == 0:
+        
+        denom = n * np.sum(x ** 2) - np.sum(x) ** 2
+        if abs(denom) < 1e-10:
             return 0.0
-            
-        slope = (n * np.sum(x * y) - np.sum(x) * np.sum(y)) / \
-                (n * np.sum(x ** 2) - np.sum(x) ** 2)
+        
+        slope = (
+            n * np.sum(x * y) - np.sum(x) * np.sum(y)
+        ) / denom
         
         return float(slope)
     
-    def _process_database_data(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        """Process database data into features and targets"""
+    def _train_model(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> Dict[str, Any]:
+        """Train and select best model"""
         
-        # Pivot to get semester columns
-        pivot_df = df.pivot(index='student_id', columns='semester', values='avg_percentage')
-        pivot_df = pivot_df.fillna(0)
+        print(f"📊 Data: X={X.shape}, y={y.shape}")
         
-        # Ensure all 8 semesters exist
-        for sem in range(1, 9):
-            if sem not in pivot_df.columns:
-                pivot_df[sem] = 0
-        
-        # Sort columns
-        pivot_df = pivot_df[[1, 2, 3, 4, 5, 6, 7, 8]]
-        
-        X = []
-        y = []
-        
-        for _, row in pivot_df.iterrows():
-            semester_scores = row.values.tolist()
-            
-            non_zero = [s for s in semester_scores if s > 0]
-            if not non_zero:
-                continue
-            
-            overall_avg = np.mean(non_zero)
-            trend = self._calculate_trend(non_zero)
-            consistency = np.std(non_zero) if len(non_zero) > 1 else 0
-            completed_sems = len(non_zero)
-            
-            features = semester_scores + [overall_avg, trend, consistency, completed_sems]
-            cgpa = (overall_avg / 100) * 10
-            
-            X.append(features)
-            y.append(cgpa)
-        
-        return np.array(X), np.array(y)
-    
-    def _train_model(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
-        """Train and evaluate model"""
-        
-        print(f"📊 Training data shape: X={X.shape}, y={y.shape}")
-        
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
+        X_train, X_test, y_train, y_test = (
+            train_test_split(
+                X, y,
+                test_size=0.2,
+                random_state=42
+            )
         )
         
         # Scale features
         scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
+        X_train_s = scaler.fit_transform(X_train)
+        X_test_s = scaler.transform(X_test)
         
-        # Train multiple models and select best
         models = {
             'RandomForest': RandomForestRegressor(
-                n_estimators=100, 
-                max_depth=10, 
+                n_estimators=100,
+                max_depth=10,
                 random_state=42,
                 n_jobs=-1
             ),
@@ -222,13 +208,13 @@ class TrainingService:
         
         for name, model in models.items():
             print(f"🔄 Training {name}...")
-            model.fit(X_train_scaled, y_train)
+            model.fit(X_train_s, y_train)
             
-            # Evaluate
-            y_pred = model.predict(X_test_scaled)
+            y_pred = model.predict(X_test_s)
             
-            mse = mean_squared_error(y_test, y_pred)
-            rmse = np.sqrt(mse)
+            rmse = np.sqrt(
+                mean_squared_error(y_test, y_pred)
+            )
             mae = mean_absolute_error(y_test, y_pred)
             r2 = r2_score(y_test, y_pred)
             
@@ -238,25 +224,26 @@ class TrainingService:
                 'r2': round(r2, 4)
             }
             
-            print(f"   {name}: RMSE={rmse:.4f}, MAE={mae:.4f}, R²={r2:.4f}")
+            print(
+                f"   {name}: RMSE={rmse:.4f}, "
+                f"R²={r2:.4f}"
+            )
             
             if r2 > best_score:
                 best_score = r2
                 best_model = model
                 best_name = name
         
-        print(f"\n✅ Best model: {best_name} with R²={best_score:.4f}")
-        
-        # Save best model and scaler
+        # Save model and scaler
         joblib.dump(best_model, self.model_path)
         joblib.dump(scaler, self.scaler_path)
         
-        print(f"💾 Model saved to {self.model_path}")
-        print(f"💾 Scaler saved to {self.scaler_path}")
+        print(f"\n✅ Best: {best_name} R²={best_score:.4f}")
+        print(f"💾 Saved to {self.model_path}")
         
         return {
             "success": True,
-            "message": f"Model trained successfully",
+            "message": "Model trained successfully",
             "bestModel": best_name,
             "metrics": results[best_name],
             "allResults": results,

@@ -3,108 +3,244 @@ from typing import List, Dict, Any
 from collections import defaultdict
 
 class DataProcessor:
-    """Process and transform marks data for ML model"""
+    """Process semester CGPA data for prediction"""
     
     MAX_SEMESTERS = 8
     
     @staticmethod
-    def process_marks_for_prediction(marks: List[Dict[str, Any]]) -> np.ndarray:
+    def process_marks_for_prediction(
+        marks: List[Dict[str, Any]]
+    ) -> np.ndarray:
         """
-        Convert marks data to feature vector for prediction
+        Convert marks data to semester CGPA list
+        then build feature vector
+
+        Input: List of marks with marksObtained, 
+               totalMarks, semester
+        Output: Feature vector for ML model
         
-        Input: List of marks with marksObtained, totalMarks, semester
-        Output: Feature vector [sem1_avg, sem2_avg, ..., sem8_avg, overall_avg, trend]
+        Example Input:
+        [
+          {"marksObtained": 85, "totalMarks": 100, 
+           "semester": 1},
+          {"marksObtained": 60, "totalMarks": 100, 
+           "semester": 2}
+        ]
         """
         
-        # Group marks by semester
+        # ── Step 1: Group marks by semester ──────────
         semester_marks = defaultdict(list)
         
         for mark in marks:
-            semester = mark.get('semester', 1)
-            marks_obtained = float(mark.get('marksObtained', 0))
-            total_marks = float(mark.get('totalMarks', 100))
+            semester = int(mark.get('semester', 1))
+            obtained = float(
+                mark.get('marksObtained', 0)
+            )
+            total = float(
+                mark.get('totalMarks', 100)
+            )
             
-            if total_marks > 0:
-                percentage = (marks_obtained / total_marks) * 100
-                semester_marks[semester].append(percentage)
+            if total > 0:
+                # Convert to percentage
+                percentage = (obtained / total) * 100
+                semester_marks[semester].append(
+                    percentage
+                )
         
-        # Calculate semester-wise averages
-        semester_averages = []
-        for sem in range(1, DataProcessor.MAX_SEMESTERS + 1):
-            if sem in semester_marks and semester_marks[sem]:
-                avg = np.mean(semester_marks[sem])
-            else:
-                avg = 0.0  # No data for this semester
-            semester_averages.append(avg)
+        # ── Step 2: Calculate semester-wise CGPA ─────
+        # Each semester average percentage → CGPA (0-10)
+        semester_cgpas = {}
+        for sem, scores in semester_marks.items():
+            avg_percentage = np.mean(scores)
+            # Convert percentage to CGPA scale
+            cgpa = (avg_percentage / 100) * 10
+            semester_cgpas[sem] = round(cgpa, 2)
         
-        # Calculate additional features
-        non_zero_semesters = [avg for avg in semester_averages if avg > 0]
+        # ── Step 3: Build ordered CGPA list ──────────
+        past_cgpas = [
+            semester_cgpas[sem]
+            for sem in sorted(semester_cgpas.keys())
+        ]
         
-        # Overall average (only from completed semesters)
-        overall_avg = np.mean(non_zero_semesters) if non_zero_semesters else 0.0
+        # ── Step 4: Extract features ──────────────────
+        return DataProcessor._build_feature_vector(
+            past_cgpas
+        )
+    
+    @staticmethod
+    def _build_feature_vector(
+        past_cgpas: List[float]
+    ) -> np.ndarray:
+        """
+        Build feature vector from past semester CGPAs
         
-        # Trend (improvement/decline over semesters)
-        trend = DataProcessor._calculate_trend(non_zero_semesters)
+        Features:
+        - sem1 to sem8 CGPA (0 if not available)
+        - overall average CGPA
+        - trend (slope of improvement/decline)
+        - consistency (std deviation)
+        - completed semesters count
+        - recent change (last - second last)
+        - weighted recent CGPA (60% last, 40% avg)
+        """
         
-        # Consistency (standard deviation - lower is better)
-        consistency = np.std(non_zero_semesters) if len(non_zero_semesters) > 1 else 0.0
+        # Pad to MAX_SEMESTERS with 0
+        sem_features = [0.0] * DataProcessor.MAX_SEMESTERS
+        for i, cgpa in enumerate(past_cgpas):
+            if i < DataProcessor.MAX_SEMESTERS:
+                sem_features[i] = cgpa
         
-        # Number of completed semesters
-        completed_semesters = len(non_zero_semesters)
+        # Overall average of completed semesters
+        if past_cgpas:
+            overall_avg = np.mean(past_cgpas)
+        else:
+            overall_avg = 0.0
         
-        # Feature vector: [8 semester averages + overall + trend + consistency + completed]
-        features = semester_averages + [overall_avg, trend, consistency, completed_semesters]
+        # Trend: linear regression slope
+        trend = DataProcessor._calculate_trend(
+            past_cgpas
+        )
+        
+        # Consistency: lower std = more consistent
+        if len(past_cgpas) > 1:
+            consistency = np.std(past_cgpas)
+        else:
+            consistency = 0.0
+        
+        # Completed semesters
+        completed = len(past_cgpas)
+        
+        # Recent change (last sem - previous sem)
+        if len(past_cgpas) >= 2:
+            recent_change = (
+                past_cgpas[-1] - past_cgpas[-2]
+            )
+        else:
+            recent_change = 0.0
+        
+        # Weighted recent CGPA
+        # 60% last semester + 40% overall average
+        if past_cgpas:
+            weighted_recent = (
+                past_cgpas[-1] * 0.6 + 
+                overall_avg * 0.4
+            )
+        else:
+            weighted_recent = 0.0
+        
+        # Final feature vector
+        features = sem_features + [
+            overall_avg,       # Feature 9
+            trend,             # Feature 10
+            consistency,       # Feature 11
+            completed,         # Feature 12
+            recent_change,     # Feature 13
+            weighted_recent    # Feature 14
+        ]
         
         return np.array(features).reshape(1, -1)
     
     @staticmethod
-    def _calculate_trend(semester_averages: List[float]) -> float:
+    def _calculate_trend(
+        cgpas: List[float]
+    ) -> float:
         """
-        Calculate trend (positive = improving, negative = declining)
-        Uses linear regression slope
+        Linear regression slope of CGPA over semesters
+        Positive = improving, Negative = declining
         """
-        if len(semester_averages) < 2:
+        if len(cgpas) < 2:
             return 0.0
         
-        x = np.arange(len(semester_averages))
-        y = np.array(semester_averages)
+        x = np.arange(len(cgpas))
+        y = np.array(cgpas)
         
-        # Simple linear regression
         n = len(x)
-        slope = (n * np.sum(x * y) - np.sum(x) * np.sum(y)) / \
-                (n * np.sum(x ** 2) - np.sum(x) ** 2)
+        denominator = (
+            n * np.sum(x ** 2) - np.sum(x) ** 2
+        )
+        
+        if abs(denominator) < 1e-10:
+            return 0.0
+        
+        slope = (
+            n * np.sum(x * y) - 
+            np.sum(x) * np.sum(y)
+        ) / denominator
         
         return float(slope)
     
     @staticmethod
-    def calculate_confidence(marks: List[Dict[str, Any]]) -> float:
+    def calculate_confidence(
+        marks: List[Dict[str, Any]]
+    ) -> float:
         """
-        Calculate prediction confidence based on data quality
+        Confidence based on number of semesters
+        and consistency of past CGPAs
         """
         if not marks:
             return 0.0
         
-        # Count unique semesters with data
-        semesters = set()
+        # Get unique semesters
+        semesters = set(
+            m.get('semester', 1) for m in marks
+        )
+        completed = len(semesters)
+        total_entries = len(marks)
+        
+        # Factor 1: Semester count
+        # Max confidence at 4+ semesters
+        semester_factor = min(completed / 4.0, 1.0)
+        
+        # Factor 2: Data volume
+        # Max confidence at 20+ mark entries
+        data_factor = min(total_entries / 20.0, 1.0)
+        
+        # Factor 3: Consistency
+        # Calculate per-semester CGPAs
+        semester_marks = defaultdict(list)
         for mark in marks:
-            semesters.add(mark.get('semester', 1))
+            sem = int(mark.get('semester', 1))
+            obtained = float(
+                mark.get('marksObtained', 0)
+            )
+            total = float(
+                mark.get('totalMarks', 100)
+            )
+            if total > 0:
+                semester_marks[sem].append(
+                    (obtained / total) * 10
+                )
         
-        completed_semesters = len(semesters)
-        total_marks = len(marks)
+        sem_cgpas = [
+            np.mean(v) 
+            for v in semester_marks.values()
+        ]
         
-        # Confidence factors
-        semester_factor = min(completed_semesters / 4, 1.0)  # Max at 4+ semesters
-        data_factor = min(total_marks / 20, 1.0)  # Max at 20+ marks entries
+        if len(sem_cgpas) > 1:
+            std = np.std(sem_cgpas)
+            # Lower std = more consistent = higher confidence
+            consistency_factor = max(
+                0, 1.0 - (std / 3.0)
+            )
+        else:
+            consistency_factor = 0.3
         
-        # Combined confidence (weighted average)
-        confidence = (semester_factor * 0.6 + data_factor * 0.4) * 100
+        confidence = (
+            semester_factor * 0.4 +
+            data_factor * 0.3 +
+            consistency_factor * 0.3
+        ) * 100
         
-        return round(confidence, 2)
+        return round(
+            max(10.0, min(95.0, confidence)), 2
+        )
     
     @staticmethod
-    def get_performance_insights(marks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def get_performance_insights(
+        marks: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
-        Generate insights from marks data
+        Generate insights from semester CGPA data
         """
         if not marks:
             return {
@@ -112,67 +248,92 @@ class DataProcessor:
                 "message": "Not enough data for analysis"
             }
         
-        # Group by semester
+        # Group by semester → calculate CGPA per sem
         semester_marks = defaultdict(list)
         for mark in marks:
-            semester = mark.get('semester', 1)
-            marks_obtained = float(mark.get('marksObtained', 0))
-            total_marks = float(mark.get('totalMarks', 100))
-            percentage = (marks_obtained / total_marks) * 100 if total_marks > 0 else 0
-            semester_marks[semester].append(percentage)
+            sem = int(mark.get('semester', 1))
+            obtained = float(
+                mark.get('marksObtained', 0)
+            )
+            total = float(
+                mark.get('totalMarks', 100)
+            )
+            if total > 0:
+                semester_marks[sem].append(
+                    (obtained / total) * 10
+                )
         
-        # Calculate statistics
-        semester_averages = {
-            sem: round(np.mean(scores), 2) 
+        # Semester-wise CGPA
+        semester_cgpas = {
+            sem: round(np.mean(scores), 2)
             for sem, scores in semester_marks.items()
         }
         
-        all_percentages = []
-        for scores in semester_marks.values():
-            all_percentages.extend(scores)
+        # Overall CGPA
+        all_cgpas = list(semester_cgpas.values())
+        overall_cgpa = round(np.mean(all_cgpas), 2) \
+            if all_cgpas else 0
         
-        overall_avg = round(np.mean(all_percentages), 2) if all_percentages else 0
-        
-        # Determine performance status
-        if overall_avg >= 75:
+        # Performance status
+        if overall_cgpa >= 8.0:
             status = "excellent"
-            message = "Outstanding performance! Keep up the great work."
-        elif overall_avg >= 60:
+            message = (
+                "Outstanding! You are on track "
+                "for a great final CGPA."
+            )
+        elif overall_cgpa >= 6.5:
             status = "good"
-            message = "Good performance. Focus on improving weaker subjects."
-        elif overall_avg >= 50:
+            message = (
+                "Good performance. "
+                "Focus on improvement."
+            )
+        elif overall_cgpa >= 5.0:
             status = "average"
-            message = "Average performance. More effort needed in studies."
+            message = (
+                "Average performance. "
+                "More effort needed."
+            )
         else:
             status = "needs_improvement"
-            message = "Needs significant improvement. Consider seeking help."
+            message = (
+                "Needs improvement. "
+                "Seek academic help."
+            )
         
-        # Find best and worst semesters
-        best_semester = max(semester_averages, key=semester_averages.get) if semester_averages else None
-        worst_semester = min(semester_averages, key=semester_averages.get) if semester_averages else None
-        
-        # Trend analysis
-        sorted_semesters = sorted(semester_averages.keys())
-        if len(sorted_semesters) >= 2:
-            recent = semester_averages[sorted_semesters[-1]]
-            previous = semester_averages[sorted_semesters[-2]]
-            if recent > previous + 5:
+        # Trend from semester CGPAs
+        sorted_sems = sorted(semester_cgpas.keys())
+        if len(sorted_sems) >= 2:
+            recent = semester_cgpas[sorted_sems[-1]]
+            previous = semester_cgpas[sorted_sems[-2]]
+            diff = recent - previous
+            
+            if diff > 0.5:
                 trend = "improving"
-            elif recent < previous - 5:
+            elif diff < -0.5:
                 trend = "declining"
             else:
                 trend = "stable"
         else:
             trend = "insufficient_data"
         
+        # Best and worst semester
+        best_sem = max(
+            semester_cgpas, 
+            key=semester_cgpas.get
+        ) if semester_cgpas else None
+        
+        worst_sem = min(
+            semester_cgpas, 
+            key=semester_cgpas.get
+        ) if semester_cgpas else None
+        
         return {
             "status": status,
             "message": message,
-            "overallAverage": overall_avg,
-            "semesterAverages": semester_averages,
-            "bestSemester": best_semester,
-            "worstSemester": worst_semester,
+            "overallCGPA": overall_cgpa,
+            "semesterCGPAs": semester_cgpas,
+            "bestSemester": best_sem,
+            "worstSemester": worst_sem,
             "trend": trend,
-            "totalSubjects": len(marks),
-            "completedSemesters": len(semester_averages)
+            "completedSemesters": len(semester_cgpas)
         }

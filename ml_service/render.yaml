@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: cgpa-ml-service
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python scripts/train_model.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: CORS_ORIGINS
+        value: https://student-management-backend-iftd.onrender.com
