@@ -17,7 +17,7 @@ public class MLServiceClient {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${ml.service.url:http://localhost:5000}")
+    @Value("${ml.service.url:https://admin-module-iyv6.onrender.com/}")
     private String mlServiceUrl;
 
     /**
