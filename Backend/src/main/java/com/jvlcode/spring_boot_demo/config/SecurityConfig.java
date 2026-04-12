@@ -45,8 +45,8 @@ public class SecurityConfig {
         config.setAllowedOriginPatterns(Arrays.asList(
             "http://localhost:*",
             "http://127.0.0.1:*",
-            "https://*.vercel.app",
-            "https://*.netlify.app"
+            "https://admin-module-wuq1.vercel.app/*",
+            "https://student-management-backend-iftd.onrender.com/*"
         ));
         
         // ✅ Allow all HTTP methods

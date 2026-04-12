@@ -1,13 +1,18 @@
 import os
 import numpy as np
 import joblib
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from utils.data_processor import DataProcessor
+from collections import defaultdict
 
 class PredictionService:
-    """Service for CGPA predictions"""
+    """
+    Predicts NEXT semester CGPA from past marks data
+    """
     
-    def __init__(self, model_path: str, scaler_path: str):
+    def __init__(
+        self, model_path: str, scaler_path: str
+    ):
         self.model = None
         self.scaler = None
         self.model_path = model_path
@@ -18,17 +23,20 @@ class PredictionService:
         """Load trained model and scaler"""
         try:
             if os.path.exists(self.model_path):
-                self.model = joblib.load(self.model_path)
-                print(f"✅ Model loaded from {self.model_path}")
+                self.model = joblib.load(
+                    self.model_path
+                )
+                print(f"✅ Model loaded")
             else:
-                print(f"⚠️ Model not found at {self.model_path}")
+                print(f"⚠️ Model not found")
                 self.model = None
             
             if os.path.exists(self.scaler_path):
-                self.scaler = joblib.load(self.scaler_path)
-                print(f"✅ Scaler loaded from {self.scaler_path}")
+                self.scaler = joblib.load(
+                    self.scaler_path
+                )
+                print(f"✅ Scaler loaded")
             else:
-                print(f"⚠️ Scaler not found at {self.scaler_path}")
                 self.scaler = None
                 
         except Exception as e:
@@ -36,44 +44,97 @@ class PredictionService:
             self.model = None
             self.scaler = None
     
-    def is_model_loaded(self) -> bool:
-        """Check if model is loaded"""
-        return self.model is not None
-    
-    def predict(self, marks: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def predict(
+        self, marks: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
-        Predict CGPA based on marks data
+        Predict next semester CGPA from marks data
+
+        Input marks example:
+        [
+          {"marksObtained": 90, "totalMarks": 100,
+           "semester": 1},
+          {"marksObtained": 60, "totalMarks": 100,
+           "semester": 2}
+        ]
+
+        This means:
+          Sem 1 CGPA = 9.0
+          Sem 2 CGPA = 6.0
+          Predicted Sem 3 CGPA = ?
         """
         try:
-            # Process marks into features
-            features = DataProcessor.process_marks_for_prediction(marks)
+            # Get past CGPAs from marks
+            past_cgpas = self._extract_semester_cgpas(
+                marks
+            )
             
-            # Scale features if scaler is available
+            if not past_cgpas:
+                return {
+                    "success": False,
+                    "message": "No valid marks data",
+                    "predictedCGPA": None,
+                    "confidence": 0
+                }
+            
+            # Build feature vector
+            features = (
+                DataProcessor
+                .process_marks_for_prediction(marks)
+            )
+            
+            # Scale and predict
             if self.scaler is not None:
-                features = self.scaler.transform(features)
+                features = self.scaler.transform(
+                    features
+                )
             
-            # Make prediction
             if self.model is not None:
-                predicted_cgpa = self.model.predict(features)[0]
+                predicted = float(
+                    self.model.predict(features)[0]
+                )
+                model_used = "ml_model"
             else:
-                # Fallback: Simple calculation if model not available
-                predicted_cgpa = self._fallback_prediction(marks)
+                # Fallback prediction
+                predicted = self._fallback_prediction(
+                    past_cgpas
+                )
+                model_used = "fallback"
             
-            # Ensure CGPA is within valid range (0-10)
-            predicted_cgpa = max(0, min(10, predicted_cgpa))
+            # Clamp to valid range
+            predicted = max(0.0, min(10.0, predicted))
             
-            # Calculate confidence
-            confidence = DataProcessor.calculate_confidence(marks)
+            # Confidence
+            confidence = DataProcessor \
+                .calculate_confidence(marks)
             
-            # Get insights
-            insights = DataProcessor.get_performance_insights(marks)
+            # Insights
+            insights = DataProcessor \
+                .get_performance_insights(marks)
+            
+            # Prediction range
+            std = np.std(past_cgpas) \
+                if len(past_cgpas) > 1 else 0.5
+            margin = max(std, 0.3)
             
             return {
                 "success": True,
-                "predictedCGPA": round(float(predicted_cgpa), 2),
+                "predictedCGPA": round(predicted, 2),
                 "confidence": confidence,
+                "range": {
+                    "low": round(
+                        max(0, predicted - margin), 2
+                    ),
+                    "high": round(
+                        min(10, predicted + margin), 2
+                    )
+                },
+                "pastSemesterCGPAs": past_cgpas,
+                "predictingForSemester": (
+                    len(past_cgpas) + 1
+                ),
                 "insights": insights,
-                "modelUsed": "ml_model" if self.model is not None else "fallback",
+                "modelUsed": model_used,
                 "dataPoints": len(marks)
             }
             
@@ -86,52 +147,93 @@ class PredictionService:
                 "confidence": 0
             }
     
-    def _fallback_prediction(self, marks: List[Dict[str, Any]]) -> float:
+    def _extract_semester_cgpas(
+        self, marks: List[Dict[str, Any]]
+    ) -> List[float]:
         """
-        Simple fallback prediction when model is not available
-        Uses weighted average based on semester progression
-        """
-        if not marks:
-            return 0.0
+        Extract ordered semester CGPAs from marks
         
-        # Calculate weighted average (recent semesters weighted more)
-        semester_scores = {}
+        Sem 1: avg(marks) → CGPA
+        Sem 2: avg(marks) → CGPA
+        ...
+        """
+        semester_marks = defaultdict(list)
+        
         for mark in marks:
-            semester = mark.get('semester', 1)
-            marks_obtained = float(mark.get('marksObtained', 0))
-            total_marks = float(mark.get('totalMarks', 100))
-            
-            if total_marks > 0:
-                percentage = (marks_obtained / total_marks) * 100
-                if semester not in semester_scores:
-                    semester_scores[semester] = []
-                semester_scores[semester].append(percentage)
+            sem = int(mark.get('semester', 1))
+            obtained = float(
+                mark.get('marksObtained', 0)
+            )
+            total = float(
+                mark.get('totalMarks', 100)
+            )
+            if total > 0:
+                semester_marks[sem].append(
+                    (obtained / total) * 10
+                )
         
-        if not semester_scores:
+        # Return in semester order
+        return [
+            round(np.mean(semester_marks[sem]), 2)
+            for sem in sorted(semester_marks.keys())
+        ]
+    
+    def _fallback_prediction(
+        self, past_cgpas: List[float]
+    ) -> float:
+        """
+        Predict next CGPA using weighted trend formula
+        when ML model is not available
+
+        Formula:
+        1. recent_change = last - second_last
+        2. avg_change = mean of all changes
+        3. predicted_change = 
+               recent_change * 0.6 + avg_change * 0.4
+        4. predicted = last + predicted_change
+        5. Apply mean reversion (20% pull to average)
+        """
+        if not past_cgpas:
             return 0.0
         
-        # Calculate semester averages with weights
-        weighted_sum = 0
-        weight_total = 0
+        if len(past_cgpas) == 1:
+            return past_cgpas[0]
         
-        for semester, scores in semester_scores.items():
-            avg = np.mean(scores)
-            weight = semester  # Later semesters have higher weight
-            weighted_sum += avg * weight
-            weight_total += weight
+        # Changes between semesters
+        changes = [
+            past_cgpas[i] - past_cgpas[i - 1]
+            for i in range(1, len(past_cgpas))
+        ]
         
-        weighted_avg = weighted_sum / weight_total if weight_total > 0 else 0
+        avg_change = float(np.mean(changes))
+        recent_change = changes[-1]
         
-        # Convert percentage to CGPA (assuming 10-point scale)
-        cgpa = (weighted_avg / 100) * 10
+        # Weighted change
+        predicted_change = (
+            recent_change * 0.6 + avg_change * 0.4
+        )
         
-        return cgpa
+        last = past_cgpas[-1]
+        mean = float(np.mean(past_cgpas))
+        
+        # Predict next
+        predicted = last + predicted_change
+        
+        # Mean reversion (20%)
+        predicted = predicted + (mean - predicted) * 0.2
+        
+        return max(0.0, min(10.0, predicted))
+    
+    def is_model_loaded(self) -> bool:
+        return self.model is not None
     
     def get_model_info(self) -> Dict[str, Any]:
-        """Get model information"""
         return {
             "modelLoaded": self.model is not None,
             "scalerLoaded": self.scaler is not None,
             "modelPath": self.model_path,
-            "modelType": type(self.model).__name__ if self.model else None
+            "modelType": (
+                type(self.model).__name__
+                if self.model else None
+            )
         }
