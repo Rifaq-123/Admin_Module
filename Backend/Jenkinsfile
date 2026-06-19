@@ -26,7 +26,7 @@ pipeline {
                         if (isUnix()) {
                             sh 'mvn clean package -DskipTests'
                         } else {
-                            bat 'mvn clean package -DskipTests'
+                            bat '"C:\\Program Files\\apache-maven-3.9.16\\bin\\mvn.cmd" clean package -DskipTests'
                         }
                     }
                 }
